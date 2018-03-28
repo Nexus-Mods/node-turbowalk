@@ -32,6 +32,7 @@ struct WalkOptions {
   Optional<bool> details;
   Optional<bool> recurse;
   Optional<bool> skipHidden;
+  Optional<bool> skipLinks;
 };
 
 void walk(const std::wstring &basePath,

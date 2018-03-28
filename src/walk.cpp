@@ -145,7 +145,7 @@ bool getFileDetails(const std::wstring &filePath, FILE_ALL_INFORMATION *fileInfo
   return res == STATUS_SUCCESS;
 }
 
-std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden)
+std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipLinks)
 {
   std::vector<Entry> result;
 
@@ -192,6 +192,7 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
       while (info < endPos) {
         size_t nameLength = info->FileNameLength / sizeof(wchar_t);
         if ((!skipHidden || ((info->FileAttributes & FILE_ATTRIBUTE_HIDDEN) == 0))
+            && (!skipLinks || ((info->FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0))
             && (wcsncmp(info->FileName, L".", nameLength) != 0)
             && (wcsncmp(info->FileName, L"..", nameLength) != 0)) {
           Entry file;
@@ -226,7 +227,7 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
 void walkInner(const std::wstring &basePath,
                const std::function<void(const std::vector<Entry> &results)> &append,
                const WalkOptions &options) {
-  std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false), options.skipHidden.getOr(true));
+  std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false), options.skipHidden.getOr(true), options.skipLinks.getOr(true));
 
   append(content);
 

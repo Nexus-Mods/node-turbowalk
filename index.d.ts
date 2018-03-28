@@ -15,6 +15,7 @@ declare module "turbowalk" {
     threshold?: number;
     recurse?: boolean;
     skipHidden?: boolean;
+    skipLinks?: boolean;
   }
 
   function turbowalk(basePath: string, progress: (entries: IEntry[]) => void,
