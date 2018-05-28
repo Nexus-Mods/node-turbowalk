@@ -5,11 +5,6 @@
             "includes": [
                 "auto.gypi"
             ],
-            "sources": [
-                "src/UnicodeString.cpp",
-                "src/walk.cpp",
-                "src/walkwrapper.cpp"
-            ],
             "include_dirs": [
               "<!(node -e \"require('nan')\")"
             ],
@@ -19,6 +14,11 @@
             "cflags_cc!": ["-fno-exceptions"],
             "conditions": [
                 ["OS==\"win\"", {
+		    "sources": [
+			"src/UnicodeString.cpp",
+			"src/walk.cpp",
+			"src/walkwrapper.cpp"
+		    ],
                     "defines!": [
                         "_HAS_EXCEPTIONS=0",
                         "UNICODE",

@@ -13,5 +13,7 @@ if (process.platform === 'win32') {
     }),
   };
 } else {
-  // fallback: js implementation
+  module.exports = {
+    default: require('./walk').default,
+  };
 }
