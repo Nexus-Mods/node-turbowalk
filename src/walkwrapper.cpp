@@ -27,6 +27,7 @@ v8::Local<v8::Object> convert(const Entry &input) {
   }
   if (input.id.isSet()) {
     result->Set("id"_n, Nan::New(static_cast<double>(*input.id)));
+    result->Set("idStr"_n, Nan::New(*input.idStr).ToLocalChecked());
   }
 
   return result;

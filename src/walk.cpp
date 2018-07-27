@@ -205,6 +205,7 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
             if (getFileDetails(file.filePath, allInfo, detailsBuffer.size())) {
               file.linkCount = allInfo->StandardInformation.NumberOfLinks;
               file.id = allInfo->InternalInformation.IndexNumber.QuadPart;
+              file.idStr = std::to_string(allInfo->InternalInformation.IndexNumber.QuadPart);
             }
           }
 

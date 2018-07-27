@@ -25,8 +25,8 @@ public:
     return mValue;
   }
 
-  T *operator->() const {
-    return mValue;
+  const T *operator->() const {
+    return &mValue;
   }
 
   T getOr(const T &def) const {
