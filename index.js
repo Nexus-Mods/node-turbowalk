@@ -6,8 +6,19 @@ if (process.platform === 'win32') {
   const bluebird = require('bluebird');
 
   module.exports = {
-    default: (walkPath, progress, options) => new bluebird((resolve, reject) => {
-      turbowalk(walkPath, progress, (err) =>
+    default: (walkPath, progress, options) => new bluebird((resolve, reject, onCancel) => {
+      cancelled = false;
+      // onCancel will be available if bluebird is configured to support cancelation
+      // but will be undefined otherwise
+      if (onCancel !== undefined) {
+        onCancel(() => { cancelled = true; });
+      }
+      turbowalk(walkPath, (entries) => {
+        if (progress !== undefined) {
+          progress(entries);
+        }
+        return !cancelled;
+      }, (err) =>
         err !== null ? reject(err) : resolve(err)
       , options || {});
     }),

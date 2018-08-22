@@ -225,17 +225,21 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
   return result;
 }
 
-void walkInner(const std::wstring &basePath,
-               const std::function<void(const std::vector<Entry> &results)> &append,
+bool walkInner(const std::wstring &basePath,
+               const std::function<bool(const std::vector<Entry> &results)> &append,
                const WalkOptions &options) {
   std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false), options.skipHidden.getOr(true), options.skipLinks.getOr(true));
 
-  append(content);
+  if (!append(content)) {
+    return false;
+  }
 
   if (options.recurse.getOr(true)) {
     for (auto &iter : content) {
       if (iter.attributes & FILE_ATTRIBUTE_DIRECTORY) {
-        walkInner(iter.filePath, append, options);
+        if (!walkInner(iter.filePath, append, options)) {
+          return false;
+        }
       }
     }
   }
@@ -245,14 +249,15 @@ void walkInner(const std::wstring &basePath,
     terminator.filePath = basePath;
     terminator.attributes = 0x80000000 | FILE_ATTRIBUTE_DIRECTORY;
     terminator.size = 0;
-    append({
-      terminator
-    });
+    if (!append({terminator})) {
+      return false;
+    }
   }
+  return true;
 }
 
 void walk(const std::wstring &basePath,
-          std::function<void(const std::vector<Entry> &results)> cb,
+          std::function<bool(const std::vector<Entry> &results)> cb,
           const WalkOptions &options) {
   if ((NtQueryDirectoryFile == nullptr)
       || (NtQueryInformationFile == nullptr)) {
@@ -263,18 +268,20 @@ void walk(const std::wstring &basePath,
 
   std::vector<Entry> res;
 
-  auto append = [&res, &cb, &options] (const std::vector<Entry> &source) {
+  auto append = [&res, &cb, &options] (const std::vector<Entry> &source) -> bool {
     res.reserve(res.size() + source.size());
     res.insert(res.end(), source.begin(), source.end());
+    bool cont = true;
     if (res.size() >= options.threshold.getOr(1024)) {
-      cb(res);
+      cont = cb(res);
       res.clear();
     }
+    return cont;
   };
 
-  walkInner(basePath, append, options);
- 
-  if (res.size() > 0) {
+  bool cancelled = walkInner(basePath, append, options);
+
+  if (!cancelled && (res.size() > 0)) {
     cb(res);
   }
 }

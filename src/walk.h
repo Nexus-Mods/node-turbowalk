@@ -28,5 +28,5 @@ struct WalkOptions {
 };
 
 void walk(const std::wstring &basePath,
-          std::function<void(const std::vector<Entry> &results)> cb,
+          std::function<bool(const std::vector<Entry> &results)> cb,
           const WalkOptions &options);

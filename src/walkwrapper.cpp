@@ -9,6 +9,19 @@
 using namespace Nan;
 using namespace v8;
 
+template <typename T>
+T cast(const v8::Local<v8::Value> &input);
+
+template <>
+bool cast(const v8::Local<v8::Value> &input) {
+  return input->BooleanValue();
+}
+
+template <>
+int cast(const v8::Local<v8::Value> &input) {
+  return input->Int32Value();
+}
+
 v8::Local<v8::String> operator "" _n(const char *input, size_t) {
   return Nan::New(input).ToLocalChecked();
 }
@@ -55,8 +68,10 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
   }
 
   void Execute(const AsyncProgressQueueWorker<Entry>::ExecutionProgress &progress) {
-    walk(mBasePath, [&progress, this](const std::vector<Entry> &entries) {
+    mCancelled = false;
+    walk(mBasePath, [&progress, this](const std::vector<Entry> &entries) -> bool {
       progress.Send(&entries[0], entries.size());
+      return !mCancelled;
     }, mOptions);
   }
 
@@ -66,7 +81,10 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
     v8::Local<v8::Value> argv[] = {
         convert(data, size).As<v8::Value>()
     };
-    mProgress->Call(1, argv);
+    v8::MaybeLocal<v8::Value> res = Nan::Call(*mProgress, 1, argv);
+    if (!cast<bool>(res.ToLocalChecked())) {
+      mCancelled = true;
+    }
   }
 
   void HandleOKCallback () {
@@ -77,30 +95,18 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
     };
 
 
-    callback->Call(1, argv);
+    Nan::Call(*callback, 1, argv);
   }
 
  private:
    Callback *mProgress;
    std::wstring mBasePath;
+   bool mCancelled;
    WalkOptions mOptions;
 };
 
 
 
-
-template <typename T>
-T cast(const v8::Local<v8::Value> &input);
-
-template <>
-bool cast(const v8::Local<v8::Value> &input) {
-  return input->BooleanValue();
-}
-
-template <>
-int cast(const v8::Local<v8::Value> &input) {
-  return input->Int32Value();
-}
 
 template <typename T>
 T get(const v8::Local<v8::Object> &obj, const char *key, const T &def) {
