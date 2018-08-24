@@ -279,7 +279,7 @@ void walk(const std::wstring &basePath,
     return cont;
   };
 
-  bool cancelled = walkInner(basePath, append, options);
+  bool cancelled = !walkInner(basePath, append, options);
 
   if (!cancelled && (res.size() > 0)) {
     cb(res);

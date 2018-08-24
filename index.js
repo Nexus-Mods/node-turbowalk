@@ -19,7 +19,7 @@ if (process.platform === 'win32') {
         }
         return !cancelled;
       }, (err) =>
-        err !== null ? reject(err) : resolve(err)
+        err !== null ? reject(err) : resolve()
       , options || {});
     }),
   };
