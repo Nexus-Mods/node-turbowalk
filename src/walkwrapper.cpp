@@ -22,8 +22,47 @@ int cast(const v8::Local<v8::Value> &input) {
   return input->Int32Value();
 }
 
-v8::Local<v8::String> operator "" _n(const char *input, size_t) {
+static std::wstring strerror(DWORD errorno) {
+  wchar_t *errmsg = nullptr;
+
+  FormatMessageW(FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM |
+    FORMAT_MESSAGE_IGNORE_INSERTS, nullptr, errorno,
+    MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT), (LPWSTR)&errmsg, 0, nullptr);
+
+  if (errmsg) {
+    for (int i = (wcslen(errmsg) - 1);
+         (i >= 0) && ((errmsg[i] == '\n') || (errmsg[i] == '\r'));
+         --i) {
+      errmsg[i] = '\0';
+    }
+
+    return errmsg;
+  }
+  else {
+    return L"Unknown error";
+  }
+}
+
+inline Local<Value> WinApiException(
+  DWORD lastError
+  , const char *func = nullptr
+  , const char* path = nullptr) {
+
+  std::wstring errStr = strerror(lastError);
+  std::string err = toMB(errStr.c_str(), CodePage::UTF8, errStr.size());
+  return node::WinapiErrnoException(Isolate::GetCurrent(), lastError, func, err.c_str(), path);
+}
+
+Local<String> operator "" _n(const char *input, size_t) {
   return Nan::New(input).ToLocalChecked();
+}
+
+std::wstring toWC(const Local<Value> &input) {
+  if (input->IsNullOrUndefined()) {
+    return std::wstring();
+  }
+  String::Utf8Value temp(input);
+  return toWC(*temp, CodePage::UTF8, temp.length());
 }
 
 v8::Local<v8::Object> convert(const Entry &input) {
@@ -61,21 +100,33 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
     , mProgress(progress)
     , mBasePath(basePath)
     , mOptions(options)
+    , mErrorCode(0)
+    , mErrorFunc()
+    , mErrorPath()
   {}
 
   ~WalkWorker() {
     delete mProgress;
   }
 
-  void Execute(const AsyncProgressQueueWorker<Entry>::ExecutionProgress &progress) {
+  virtual void Execute(const AsyncProgressQueueWorker<Entry>::ExecutionProgress &progress) override {
     mCancelled = false;
-    walk(mBasePath, [&progress, this](const std::vector<Entry> &entries) -> bool {
-      progress.Send(&entries[0], entries.size());
-      return !mCancelled;
-    }, mOptions);
+    try {
+      walk(mBasePath, [&progress, this](const std::vector<Entry> &entries) -> bool {
+        progress.Send(&entries[0], entries.size());
+        return !mCancelled;
+      }, mOptions);
+    } catch (const ApiError &e) {
+      SetErrorMessage("API Error");
+      mErrorCode = e.code();
+      mErrorFunc = e.func();
+      mErrorPath = e.path();
+    } catch (const std::exception &e) {
+      SetErrorMessage(e.what());
+    }
   }
 
-  void HandleProgressCallback(const Entry *data, size_t size) {
+  virtual void HandleProgressCallback(const Entry *data, size_t size) override {
     Nan::HandleScope scope;
 
     v8::Local<v8::Value> argv[] = {
@@ -87,14 +138,24 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
     }
   }
 
-  void HandleOKCallback () {
+  virtual void HandleOKCallback () override {
     Nan::HandleScope scope;
 
     Local<Value> argv[] = {
         Null()
     };
 
+    Nan::Call(*callback, 1, argv);
+  }
 
+  virtual void HandleErrorCallback() override {
+    Nan::HandleScope scope;
+
+    Local<Value> argv[] = {
+      mErrorCode != 0
+        ? WinApiException(mErrorCode, mErrorFunc.c_str(), mErrorPath.c_str())
+        : Exception::Error(New<v8::String>(ErrorMessage()).ToLocalChecked())
+    };
     Nan::Call(*callback, 1, argv);
   }
 
@@ -103,9 +164,10 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
    std::wstring mBasePath;
    bool mCancelled;
    WalkOptions mOptions;
+   uint32_t mErrorCode;
+   std::string mErrorFunc;
+   std::string mErrorPath;
 };
-
-
 
 
 template <typename T>

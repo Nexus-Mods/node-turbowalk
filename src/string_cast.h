@@ -9,7 +9,7 @@ enum class CodePage {
   UTF8
 };
 
-UINT windowsCP(CodePage codePage)
+static UINT windowsCP(CodePage codePage)
 {
   switch (codePage) {
     case CodePage::LOCAL:  return CP_ACP;

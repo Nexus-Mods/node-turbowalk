@@ -8,6 +8,34 @@
 
 static uint32_t FILE_ATTRIBUTE_TERMINATOR = 0x80000000;
 
+class ApiError : public std::exception {
+public:
+  ApiError(uint32_t code, const std::string &func, const std::string &path)
+    : std::exception()
+    , mCode(code)
+    , mFunc(func)
+    , mPath(path)
+    {
+    }
+
+  uint32_t code() const {
+    return mCode;
+  }
+
+  const char *func() const {
+    return mFunc.c_str();
+  }
+
+  const char *path() const {
+    return mPath.c_str();
+  }
+
+private:
+  uint32_t mCode;
+  std::string mFunc;
+  std::string mPath;
+};
+
 struct Entry {
   std::wstring filePath;
   uint32_t attributes;

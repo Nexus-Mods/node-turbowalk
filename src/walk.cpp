@@ -4,6 +4,7 @@
 #include <iostream>
 
 #include "./walk.h"
+#include "./string_cast.h"
 #include "./UnicodeString.h"
 
 const uint64_t UNIX_EPOCH = 0x019DB1DED53E8000; // 100ns ticks between windows epoch (1601) and unix epoch (1970)
@@ -149,16 +150,15 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
 {
   std::vector<Entry> result;
 
-  HANDLE hdl = CreateFileW((*directoryName.rbegin() == ':' ? directoryName + L'\\' : directoryName).c_str()
+  HANDLE hdl = CreateFileW((std::wstring(LR"(\\?\)") + (*directoryName.rbegin() == ':' ? directoryName + L'\\' : directoryName)).c_str()
                            , GENERIC_READ
                            , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
                            , nullptr
                            , OPEN_EXISTING
                            , FILE_FLAG_BACKUP_SEMANTICS
                            , nullptr);
-
   if (hdl == INVALID_HANDLE_VALUE) {
-    return result;
+    throw ApiError(::GetLastError(), "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
   }
 
   result.reserve(1000);
