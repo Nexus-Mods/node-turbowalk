@@ -196,7 +196,9 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
             && (wcsncmp(info->FileName, L".", nameLength) != 0)
             && (wcsncmp(info->FileName, L"..", nameLength) != 0)) {
           Entry file;
-          file.filePath = directoryName + L"\\" + std::wstring(info->FileName, nameLength);
+          file.filePath = (*directoryName.rbegin() == L'\\')
+            ? directoryName + std::wstring(info->FileName, nameLength)
+            : directoryName + L"\\" + std::wstring(info->FileName, nameLength);
           file.attributes = info->FileAttributes;
           file.size = info->AllocationSize.QuadPart;
           file.mtime = static_cast<uint32_t>((info->LastWriteTime.QuadPart - UNIX_EPOCH) / NS100_TO_SECOND);
