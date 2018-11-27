@@ -7,6 +7,7 @@ if (process.platform === 'win32') {
 
   module.exports = {
     default: (walkPath, progress, options) => new bluebird((resolve, reject, onCancel) => {
+      const stackErr = new Error();
       cancelled = false;
       // onCancel will be available if bluebird is configured to support cancelation
       // but will be undefined otherwise
@@ -18,8 +19,14 @@ if (process.platform === 'win32') {
           progress(entries);
         }
         return !cancelled;
-      }, (err) =>
-        err !== null ? reject(err) : resolve()
+      }, (err) => {
+        if (err !== null) {
+          err.stack = stackErr.stack;
+          reject(err);
+        } else {
+          resolve();
+        }
+      }
       , options || {});
     }),
   };
