@@ -14,7 +14,7 @@ if (process.platform === 'win32') {
       if (onCancel !== undefined) {
         onCancel(() => { cancelled = true; });
       }
-      turbowalk(walkPath, (entries) => {
+      turbowalk(path.normalize(walkPath), (entries) => {
         if (progress !== undefined) {
           progress(entries);
         }
