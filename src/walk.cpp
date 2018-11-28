@@ -146,7 +146,7 @@ bool getFileDetails(const std::wstring &filePath, FILE_ALL_INFORMATION *fileInfo
   return res == STATUS_SUCCESS;
 }
 
-std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipLinks)
+std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipLinks, bool skipInaccessible)
 {
   std::vector<Entry> result;
 
@@ -158,7 +158,12 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
                            , FILE_FLAG_BACKUP_SEMANTICS
                            , nullptr);
   if (hdl == INVALID_HANDLE_VALUE) {
-    throw ApiError(::GetLastError(), "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
+    DWORD code = ::GetLastError();
+    if (skipInaccessible && (code == ERROR_ACCESS_DENIED)) {
+      return result;
+    } else {
+      throw ApiError(code, "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
+    }
   }
 
   result.reserve(1000);
@@ -230,7 +235,10 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
 bool walkInner(const std::wstring &basePath,
                const std::function<bool(const std::vector<Entry> &results)> &append,
                const WalkOptions &options) {
-  std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false), options.skipHidden.getOr(true), options.skipLinks.getOr(true));
+  std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false),
+                                              options.skipHidden.getOr(true),
+                                              options.skipLinks.getOr(true),
+                                              options.skipInaccessible.getOr(true));
 
   if (!append(content)) {
     return false;

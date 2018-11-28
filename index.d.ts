@@ -34,6 +34,8 @@ declare module "turbowalk" {
     skipHidden?: boolean;
     // don't recurse into links (junctions), otherwise we may end in an endless loop (default: true)
     skipLinks?: boolean;
+    // skip past directories that aren't accessible without producing an error (default: true)
+    skipInaccessible?: boolean;
   }
 
   function turbowalk(basePath: string, progress: (entries: IEntry[]) => void,
