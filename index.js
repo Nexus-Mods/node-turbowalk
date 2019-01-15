@@ -22,6 +22,13 @@ if (process.platform === 'win32') {
       }, (err) => {
         if (err !== null) {
           err.stack = stackErr.stack;
+          const code = {
+            2: 'ENOTFOUND',
+            3: 'ENOTFOUND',
+          }[err.errno];
+          if (code !== undefined) {
+            err.code = code;
+          }
           reject(err);
         } else {
           resolve();
