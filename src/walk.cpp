@@ -150,7 +150,10 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
 {
   std::vector<Entry> result;
 
-  HANDLE hdl = CreateFileW((std::wstring(LR"(\\?\)") + (*directoryName.rbegin() == ':' ? directoryName + L'\\' : directoryName)).c_str()
+  std::wstring prefix = (directoryName[0] == directoryName[1]) && (directoryName[0] == '\\') ? L"" : L"\\\\?\\";
+  std::wstring suffix = (*directoryName.rbegin() == ':') ? L"\\" : L"";
+
+  HANDLE hdl = CreateFileW((prefix + directoryName + suffix).c_str()
                            , GENERIC_READ
                            , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
                            , nullptr

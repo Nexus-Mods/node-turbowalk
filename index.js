@@ -5,6 +5,9 @@ if (process.platform === 'win32') {
   // const turbowalk = require('./build/Debug/turbowalk').default;
   const bluebird = require('bluebird');
 
+  const isDriveLetter = (input) =>
+    (input.length === 2) && input.endsWith(':')
+
   module.exports = {
     default: (walkPath, progress, options) => new bluebird((resolve, reject, onCancel) => {
       const stackErr = new Error();
@@ -14,7 +17,7 @@ if (process.platform === 'win32') {
       if (onCancel !== undefined) {
         onCancel(() => { cancelled = true; });
       }
-      turbowalk(path.normalize(walkPath), (entries) => {
+      turbowalk(isDriveLetter(walkPath) ? walkPath : path.normalize(walkPath), (entries) => {
         if (progress !== undefined) {
           progress(entries);
         }
