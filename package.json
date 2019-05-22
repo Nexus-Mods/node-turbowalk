@@ -11,6 +11,6 @@
     "autogypi": "^0.2.2",
     "fs-extra-promise": "^1.0.1",
     "nan": "^2.8.0",
-    "node-gyp": "^3.4.0"
+    "node-gyp": "^4.0.0"
   }
 }

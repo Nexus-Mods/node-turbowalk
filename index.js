@@ -24,7 +24,7 @@ if (process.platform === 'win32') {
         return !cancelled;
       }, (err) => {
         if (err !== null) {
-          err.stack = stackErr.stack;
+          err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
           const code = {
             2: 'ENOTFOUND',
             3: 'ENOTFOUND',
