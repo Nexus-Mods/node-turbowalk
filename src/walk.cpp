@@ -2,6 +2,7 @@
 #include <string>
 #include <vector>
 #include <iostream>
+#include <set>
 
 #include "./walk.h"
 #include "./string_cast.h"
@@ -146,6 +147,16 @@ bool getFileDetails(const std::wstring &filePath, FILE_ALL_INFORMATION *fileInfo
   return res == STATUS_SUCCESS;
 }
 
+HANDLE openDirectory(const std::wstring &name) {
+  return ::CreateFileW(name.c_str()
+    , GENERIC_READ
+    , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
+    , nullptr
+    , OPEN_EXISTING
+    , FILE_FLAG_BACKUP_SEMANTICS
+    , nullptr);
+}
+
 std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipLinks, bool skipInaccessible)
 {
   std::vector<Entry> result;
@@ -153,19 +164,32 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
   std::wstring prefix = (directoryName[0] == directoryName[1]) && (directoryName[0] == '\\') ? L"" : L"\\\\?\\";
   std::wstring suffix = (*directoryName.rbegin() == ':') ? L"\\" : L"";
 
-  HANDLE hdl = CreateFileW((prefix + directoryName + suffix).c_str()
-                           , GENERIC_READ
-                           , FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE
-                           , nullptr
-                           , OPEN_EXISTING
-                           , FILE_FLAG_BACKUP_SEMANTICS
-                           , nullptr);
+  std::wstring name = prefix + directoryName + suffix;
+  HANDLE hdl = INVALID_HANDLE_VALUE;
+  int tries = 3;
+  static std::set<DWORD> RETRY_ERRORS{ ERROR_SHARING_VIOLATION, ERROR_LOCK_VIOLATION };
+
+  while ((hdl == INVALID_HANDLE_VALUE) && (tries > 0)) {
+    --tries;
+    hdl = openDirectory(name);
+
+    if (hdl == INVALID_HANDLE_VALUE) {
+      if (RETRY_ERRORS.find(::GetLastError()) == RETRY_ERRORS.end()) {
+        // don't retry if it doesn't make sense for this error code
+        break;
+      }
+      else {
+        ::Sleep(100);
+      }
+    }
+  }
+
   if (hdl == INVALID_HANDLE_VALUE) {
-    DWORD code = ::GetLastError();
-    if (skipInaccessible && (code == ERROR_ACCESS_DENIED)) {
+    if (skipInaccessible && (::GetLastError() == ERROR_ACCESS_DENIED)) {
       return result;
-    } else {
-      throw ApiError(code, "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
+    }
+    else {
+      throw ApiError(::GetLastError(), "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
     }
   }
 
