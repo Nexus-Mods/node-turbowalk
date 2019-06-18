@@ -9,36 +9,42 @@ if (process.platform === 'win32') {
     (input.length === 2) && input.endsWith(':')
 
   module.exports = {
-    default: (walkPath, progress, options) => new bluebird((resolve, reject, onCancel) => {
+    default: (walkPath, progress, options) => {
       const stackErr = new Error();
-      cancelled = false;
-      // onCancel will be available if bluebird is configured to support cancelation
-      // but will be undefined otherwise
-      if (onCancel !== undefined) {
-        onCancel(() => { cancelled = true; });
-      }
-      turbowalk(isDriveLetter(walkPath) ? walkPath : path.normalize(walkPath), (entries) => {
-        if (progress !== undefined) {
-          progress(entries);
+      return new bluebird((resolve, reject, onCancel) => {
+        cancelled = false;
+        // onCancel will be available if bluebird is configured to support cancelation
+        // but will be undefined otherwise
+        if (onCancel !== undefined) {
+          onCancel(() => { cancelled = true; });
         }
-        return !cancelled;
-      }, (err) => {
-        if (err !== null) {
-          err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
-          const code = {
-            2: 'ENOTFOUND',
-            3: 'ENOTFOUND',
-          }[err.errno];
-          if (code !== undefined) {
-            err.code = code;
+        turbowalk(isDriveLetter(walkPath) ? walkPath : path.normalize(walkPath), (entries) => {
+          if (progress !== undefined) {
+            progress(entries);
           }
-          reject(err);
-        } else {
-          resolve();
+          return !cancelled;
+        }, (err) => {
+          if (err !== null) {
+            err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
+            const code = {
+              2: 'ENOTFOUND',
+              3: 'ENOTFOUND',
+              23: 'EIO',
+              32: 'EBUSY',
+              55: 'ENOTCONN',
+              1392: 'EIO',
+            }[err.errno];
+            if (code !== undefined) {
+              err.code = code;
+            }
+            reject(err);
+          } else {
+            resolve();
+          }
         }
-      }
-      , options || {});
-    }),
+          , options || {});
+      });
+    },
   };
 } else {
   module.exports = {
