@@ -1,5 +1,5 @@
 const Promise = require('bluebird');
-const fs = require('fs-extra-promise');
+const fs = require('fs-extra');
 
 function walk(target,
               callback,
@@ -7,14 +7,14 @@ function walk(target,
   const opt = options || {};
   let allFileNames;
 
-  return fs.readdirAsync(target)
+  return fs.readdir(target)
     .catch(err => (err.code === 'ENOENT')
       ? Promise.resolve([])
       : Promise.reject(err))
     .then((fileNames) => {
       allFileNames = fileNames;
       return Promise.map(fileNames, (statPath) =>
-                         fs.lstatAsync(path.join(target, statPath)).reflect(), { concurrency: 50 });
+                         Promise.resolve(fs.lstat(path.join(target, statPath))).reflect(), { concurrency: 50 });
     }).then((res) => {
       // use the stats results to generate a list of paths of the directories
       // in the searched directory

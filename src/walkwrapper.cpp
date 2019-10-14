@@ -10,16 +10,16 @@ using namespace Nan;
 using namespace v8;
 
 template <typename T>
-T cast(const v8::Local<v8::Value> &input);
+T cast(const Local<Context> &context, const v8::Local<v8::Value> &input);
 
 template <>
-bool cast(const v8::Local<v8::Value> &input) {
-  return input->BooleanValue();
+bool cast(const Local<Context> &context, const v8::Local<v8::Value> &input) {
+  return input->BooleanValue(context->GetIsolate());
 }
 
 template <>
-int cast(const v8::Local<v8::Value> &input) {
-  return input->Int32Value();
+int cast(const Local<Context> &context, const v8::Local<v8::Value> &input) {
+  return input->Int32Value(context).ToChecked();
 }
 
 static std::wstring strerror(DWORD errorno) {
@@ -57,38 +57,41 @@ Local<String> operator "" _n(const char *input, size_t) {
   return Nan::New(input).ToLocalChecked();
 }
 
-std::wstring toWC(const Local<Value> &input) {
+/*
+std::wstring toWC(v8::Isolate *isolate, const Local<Value> &input) {
   if (input->IsNullOrUndefined()) {
     return std::wstring();
   }
-  String::Utf8Value temp(input);
+  String::Utf8Value temp(isolate, input);
   return toWC(*temp, CodePage::UTF8, temp.length());
-}
+}*/
 
-v8::Local<v8::Object> convert(const Entry &input) {
+v8::Local<v8::Object> convert(v8::Local<v8::Context> context, const Entry &input) {
   v8::Local<v8::Object> result = Nan::New<v8::Object>();
-  result->Set("filePath"_n,
+  result->Set(context, "filePath"_n,
     Nan::New(toMB(input.filePath.c_str(), CodePage::UTF8, input.filePath.size())).ToLocalChecked());
-  result->Set("isDirectory"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_DIRECTORY) != 0));
-  result->Set("size"_n, Nan::New(static_cast<double>(input.size)));
-  result->Set("mtime"_n, Nan::New(input.mtime));
-  result->Set("isTerminator"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_TERMINATOR) != 0));
+  result->Set(context, "isDirectory"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_DIRECTORY) != 0));
+  result->Set(context, "size"_n, Nan::New(static_cast<double>(input.size)));
+  result->Set(context, "mtime"_n, Nan::New(input.mtime));
+  result->Set(context, "isTerminator"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_TERMINATOR) != 0));
 
   if (input.linkCount.isSet()) {
-    result->Set("linkCount"_n, Nan::New(*input.linkCount));
+    result->Set(context, "linkCount"_n, Nan::New(*input.linkCount));
   }
   if (input.id.isSet()) {
-    result->Set("id"_n, Nan::New(static_cast<double>(*input.id)));
-    result->Set("idStr"_n, Nan::New(*input.idStr).ToLocalChecked());
+    result->Set(context, "id"_n, Nan::New(static_cast<double>(*input.id)));
+    result->Set(context, "idStr"_n, Nan::New(*input.idStr).ToLocalChecked());
   }
 
   return result;
 }
 
 v8::Local<v8::Array> convert(const Entry *input, size_t count) {
+  v8::Local<v8::Context> context = Nan::GetCurrentContext();
+
   v8::Local<v8::Array> result = Nan::New<v8::Array>();
   for (size_t i = 0; i < count; ++i) {
-    result->Set(i, convert(input[i]));
+    result->Set(context, i, convert(context, input[i]));
   }
   return result;
 }
@@ -129,11 +132,13 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
   virtual void HandleProgressCallback(const Entry *data, size_t size) override {
     Nan::HandleScope scope;
 
+    v8::Local<v8::Context> context = Nan::GetCurrentContext();
+
     v8::Local<v8::Value> argv[] = {
         convert(data, size).As<v8::Value>()
     };
     v8::MaybeLocal<v8::Value> res = Nan::Call(*mProgress, 1, argv);
-    if (!cast<bool>(res.ToLocalChecked())) {
+    if (!cast<bool>(context, res.ToLocalChecked())) {
       mCancelled = true;
     }
   }
@@ -171,9 +176,9 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
 
 
 template <typename T>
-T get(const v8::Local<v8::Object> &obj, const char *key, const T &def) {
+T get(const v8::Local<v8::Context> &context, v8::Local<v8::Object> &obj, const char *key, const T &def) {
   v8::Local<v8::String> keyLoc = Nan::New(key).ToLocalChecked();
-  return obj->Has(keyLoc) ? cast<T>(obj->Get(keyLoc)) : def;
+  return obj->Has(context, keyLoc).FromMaybe(false) ? cast<T>(context, obj->Get(context, keyLoc).ToLocalChecked()) : def;
 }
 
 NAN_METHOD(walku8) {
@@ -182,20 +187,23 @@ NAN_METHOD(walku8) {
     return;
   }
 
-  String::Utf8Value basePath(info[0]->ToString());
+  v8::Local<v8::Context> context = Nan::GetCurrentContext();
+  v8::Isolate *isolate = info.GetIsolate();
+
+  String::Utf8Value basePath(isolate, info[0]->ToString(context).ToLocalChecked());
   Callback *progress = new Callback(To<v8::Function>(info[1]).ToLocalChecked());
   Callback *callback = new Callback(To<v8::Function>(info[2]).ToLocalChecked());
 
   WalkOptions options;
   if (info.Length() > 3) {
     v8::Local<v8::Object> optionsIn = To<v8::Object>(info[3]).ToLocalChecked();
-    options.details = get(optionsIn, "details", false);
-    options.terminators = get(optionsIn, "terminators", false);
-    options.threshold = get(optionsIn, "threshold", 1024);
-    options.recurse = get(optionsIn, "recurse", true);
-    options.skipLinks = get(optionsIn, "skipLinks", true);
-    options.skipHidden = get(optionsIn, "skipHidden", true);
-    options.skipInaccessible = get(optionsIn, "skipInaccessible", true);
+    options.details = get(context, optionsIn, "details", false);
+    options.terminators = get(context, optionsIn, "terminators", false);
+    options.threshold = get(context, optionsIn, "threshold", 1024);
+    options.recurse = get(context, optionsIn, "recurse", true);
+    options.skipLinks = get(context, optionsIn, "skipLinks", true);
+    options.skipHidden = get(context, optionsIn, "skipHidden", true);
+    options.skipInaccessible = get(context, optionsIn, "skipInaccessible", true);
   }
 
   std::wstring walkPath = toWC(*basePath, CodePage::UTF8, strlen(*basePath));
