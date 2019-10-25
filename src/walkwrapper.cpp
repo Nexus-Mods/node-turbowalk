@@ -14,7 +14,11 @@ T cast(const Local<Context> &context, const v8::Local<v8::Value> &input);
 
 template <>
 bool cast(const Local<Context> &context, const v8::Local<v8::Value> &input) {
+  #if NODE_MODULE_VERSION >= NODE_12_0_MODULE_VERSION
   return input->BooleanValue(context->GetIsolate());
+  #else
+  return input->BooleanValue();
+  #endif
 }
 
 template <>
