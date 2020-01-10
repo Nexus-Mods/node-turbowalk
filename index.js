@@ -1,3 +1,5 @@
+Object.defineProperty(exports, "__esModule", { value: true });
+
 if (process.platform === 'win32') {
   let path = require('path');
 
