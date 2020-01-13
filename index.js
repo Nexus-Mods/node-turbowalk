@@ -1,5 +1,3 @@
-Object.defineProperty(exports, "__esModule", { value: true });
-
 if (process.platform === 'win32') {
   let path = require('path');
 
@@ -11,6 +9,7 @@ if (process.platform === 'win32') {
     (input.length === 2) && input.endsWith(':')
 
   module.exports = {
+    __esModule: true,
     default: (walkPath, progress, options) => {
       const stackErr = new Error();
       return new bluebird((resolve, reject, onCancel) => {
@@ -50,6 +49,7 @@ if (process.platform === 'win32') {
   };
 } else {
   module.exports = {
+    __esModule: true,
     default: require('./walk').default,
   };
 }
