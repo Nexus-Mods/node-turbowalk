@@ -219,4 +219,8 @@ NAN_MODULE_INIT(Init) {
     GetFunction(New<v8::FunctionTemplate>(walku8)).ToLocalChecked());
 }
 
+#if NODE_MAJOR_VERSION >= 10
+NAN_MODULE_WORKER_ENABLED(turbowalk, Init)
+#else
 NODE_MODULE(turbowalk, Init)
+#endif
