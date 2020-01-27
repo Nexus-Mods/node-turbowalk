@@ -1,5 +1,6 @@
 const Promise = require('bluebird');
 const fs = require('fs-extra');
+const path = require('path');
 
 function walk(target,
               callback,
