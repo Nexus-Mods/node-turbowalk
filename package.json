@@ -7,13 +7,10 @@
   },
   "author": "Black Tree Gaming Ltd.",
   "license": "GPL-3.0",
-  "resolutions": {
-    "**/mkdirp/minimist": "1.2.2"
-  },
   "dependencies": {
     "autogypi": "^0.2.2",
+    "fs-extra": "^8.1.0",
     "nan": "^2.14.0",
-    "node-gyp": "^6.0.0",
-    "fs-extra": "^8.1.0"
+    "node-gyp": "^6.0.0"
   }
 }
