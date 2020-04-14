@@ -75,6 +75,7 @@ v8::Local<v8::Object> convert(v8::Local<v8::Context> context, const Entry &input
   result->Set(context, "filePath"_n,
     Nan::New(toMB(input.filePath.c_str(), CodePage::UTF8, input.filePath.size())).ToLocalChecked());
   result->Set(context, "isDirectory"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_DIRECTORY) != 0));
+  result->Set(context, "isReparsePoint"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0));
   result->Set(context, "size"_n, Nan::New(static_cast<double>(input.size)));
   result->Set(context, "mtime"_n, Nan::New(input.mtime));
   result->Set(context, "isTerminator"_n, Nan::New((input.attributes & FILE_ATTRIBUTE_TERMINATOR) != 0));

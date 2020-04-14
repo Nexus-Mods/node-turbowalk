@@ -1,6 +1,6 @@
 {
   "name": "turbowalk",
-  "version": "1.3.17",
+  "version": "2.0.0",
   "description": "directory walking, using platform-specific optimizations if available",
   "scripts": {
     "install": "autogypi && node-gyp configure build"

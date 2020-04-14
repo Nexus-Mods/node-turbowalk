@@ -157,7 +157,13 @@ HANDLE openDirectory(const std::wstring &name) {
     , nullptr);
 }
 
-std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipLinks, bool skipInaccessible)
+bool isReparsePoint(FILE_FULL_DIR_INFORMATION *info) {
+  // only care about directories
+  return ((info->FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0)
+    && ((info->FileAttributes & FILE_ATTRIBUTE_DIRECTORY) != 0);
+}
+
+std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pattern, bool details, bool skipHidden, bool skipInaccessible)
 {
   std::vector<Entry> result;
 
@@ -224,7 +230,6 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
       while (info < endPos) {
         size_t nameLength = info->FileNameLength / sizeof(wchar_t);
         if ((!skipHidden || ((info->FileAttributes & FILE_ATTRIBUTE_HIDDEN) == 0))
-            && (!skipLinks || ((info->FileAttributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0))
             && (wcsncmp(info->FileName, L".", nameLength) != 0)
             && (wcsncmp(info->FileName, L"..", nameLength) != 0)) {
           Entry file;
@@ -264,7 +269,6 @@ bool walkInner(const std::wstring &basePath,
                const WalkOptions &options) {
   std::vector<Entry> content = quickFindFiles(basePath, L"*", options.details.getOr(false),
                                               options.skipHidden.getOr(true),
-                                              options.skipLinks.getOr(true),
                                               options.skipInaccessible.getOr(true));
 
   if (!append(content)) {
@@ -273,7 +277,8 @@ bool walkInner(const std::wstring &basePath,
 
   if (options.recurse.getOr(true)) {
     for (auto &iter : content) {
-      if (iter.attributes & FILE_ATTRIBUTE_DIRECTORY) {
+      if (((iter.attributes & FILE_ATTRIBUTE_DIRECTORY) != 0)
+          && (((iter.attributes & FILE_ATTRIBUTE_REPARSE_POINT) == 0) || !options.skipLinks.getOr(true))) {
         if (!walkInner(iter.filePath, append, options)) {
           return false;
         }

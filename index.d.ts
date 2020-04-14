@@ -4,6 +4,8 @@ declare module "turbowalk" {
     filePath: string;
     // whether this is a directory
     isDirectory: boolean;
+    // whether this is a reparse point (symbolic link or junction point)
+    isReparsePoint: boolean
     // size in bytes
     size: number;
     // last modification time (as seconds since the unix epoch)
@@ -33,6 +35,9 @@ declare module "turbowalk" {
     // ignore files with the "hidden" attribute (default: true)
     skipHidden?: boolean;
     // don't recurse into links (junctions), otherwise we may end in an endless loop (default: true)
+    // Note: Before 2.0.0 the behavior of this flag wasn't what's documented here. This previously
+    //   left out all links from the result, both directories (junctions) and files (symbolic links).
+    //   Now it simply doesn't recurse into junction points but still lists them in the output
     skipLinks?: boolean;
     // skip past directories that aren't accessible without producing an error (default: true)
     skipInaccessible?: boolean;
