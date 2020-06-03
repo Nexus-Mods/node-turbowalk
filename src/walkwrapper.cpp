@@ -139,12 +139,17 @@ class WalkWorker : public AsyncProgressQueueWorker<Entry> {
 
     v8::Local<v8::Context> context = Nan::GetCurrentContext();
 
-    v8::Local<v8::Value> argv[] = {
-        convert(data, size).As<v8::Value>()
-    };
-    v8::MaybeLocal<v8::Value> res = Nan::Call(*mProgress, 1, argv);
-    if (!cast<bool>(context, res.ToLocalChecked())) {
-      mCancelled = true;
+    try {
+      v8::Local<v8::Value> argv[] = {
+          convert(data, size).As<v8::Value>()
+      };
+      v8::MaybeLocal<v8::Value> res = Nan::Call(*mProgress, 1, argv);
+      if (!cast<bool>(context, res.ToLocalChecked())) {
+        mCancelled = true;
+      }
+    }
+    catch (const std::exception &e) {
+      SetErrorMessage(e.what());
     }
   }
 
@@ -192,27 +197,32 @@ NAN_METHOD(walku8) {
     return;
   }
 
-  v8::Local<v8::Context> context = Nan::GetCurrentContext();
-  v8::Isolate *isolate = info.GetIsolate();
+  try {
+    v8::Local<v8::Context> context = Nan::GetCurrentContext();
+    v8::Isolate *isolate = info.GetIsolate();
 
-  String::Utf8Value basePath(isolate, info[0]->ToString(context).ToLocalChecked());
-  Callback *progress = new Callback(To<v8::Function>(info[1]).ToLocalChecked());
-  Callback *callback = new Callback(To<v8::Function>(info[2]).ToLocalChecked());
+    String::Utf8Value basePath(isolate, info[0]->ToString(context).ToLocalChecked());
+    Callback *progress = new Callback(To<v8::Function>(info[1]).ToLocalChecked());
+    Callback *callback = new Callback(To<v8::Function>(info[2]).ToLocalChecked());
 
-  WalkOptions options;
-  if (info.Length() > 3) {
-    v8::Local<v8::Object> optionsIn = To<v8::Object>(info[3]).ToLocalChecked();
-    options.details = get(context, optionsIn, "details", false);
-    options.terminators = get(context, optionsIn, "terminators", false);
-    options.threshold = get(context, optionsIn, "threshold", 1024);
-    options.recurse = get(context, optionsIn, "recurse", true);
-    options.skipLinks = get(context, optionsIn, "skipLinks", true);
-    options.skipHidden = get(context, optionsIn, "skipHidden", true);
-    options.skipInaccessible = get(context, optionsIn, "skipInaccessible", true);
+    WalkOptions options;
+    if (info.Length() > 3) {
+      v8::Local<v8::Object> optionsIn = To<v8::Object>(info[3]).ToLocalChecked();
+      options.details = get(context, optionsIn, "details", false);
+      options.terminators = get(context, optionsIn, "terminators", false);
+      options.threshold = get(context, optionsIn, "threshold", 1024);
+      options.recurse = get(context, optionsIn, "recurse", true);
+      options.skipLinks = get(context, optionsIn, "skipLinks", true);
+      options.skipHidden = get(context, optionsIn, "skipHidden", true);
+      options.skipInaccessible = get(context, optionsIn, "skipInaccessible", true);
+    }
+
+    std::wstring walkPath = toWC(*basePath, CodePage::UTF8, strlen(*basePath));
+    AsyncQueueWorker(new WalkWorker(callback, progress, walkPath, options));
   }
-
-  std::wstring walkPath = toWC(*basePath, CodePage::UTF8, strlen(*basePath));
-  AsyncQueueWorker(new WalkWorker(callback, progress, walkPath, options));
+  catch (const std::exception &e) {
+    Nan::ThrowError(e.what());
+  }
 }
 
 NAN_MODULE_INIT(Init) {
