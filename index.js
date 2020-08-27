@@ -11,6 +11,9 @@ if (process.platform === 'win32') {
   module.exports = {
     __esModule: true,
     default: (walkPath, progress, options) => {
+      if (walkPath === undefined) {
+        throw new Error('expected at least one parameter');
+      }
       const stackErr = new Error();
       return new bluebird((resolve, reject, onCancel) => {
         cancelled = false;

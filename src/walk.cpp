@@ -191,11 +191,16 @@ std::vector<Entry> quickFindFiles(const std::wstring &directoryName, LPCWSTR pat
   }
 
   if (hdl == INVALID_HANDLE_VALUE) {
-    if (skipInaccessible && (::GetLastError() == ERROR_ACCESS_DENIED)) {
+    DWORD err = ::GetLastError();
+    if (err == ERROR_NOT_FOUND) {
+      // the directory might have been deleted while the search is in progress, that is not something we can
+      // influence and thus should never lead to an error
+      return result;
+    } else if (skipInaccessible && (err == ERROR_ACCESS_DENIED)) {
       return result;
     }
     else {
-      throw ApiError(::GetLastError(), "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
+      throw ApiError(err, "CreateFile", toMB(directoryName.c_str(), CodePage::UTF8, directoryName.size()));
     }
   }
 
