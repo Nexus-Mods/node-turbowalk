@@ -1,58 +1,47 @@
-if (process.platform === 'win32') {
-  let path = require('path');
+let walk;
 
-  const turbowalk = require('./build/Release/turbowalk').default;
-  // const turbowalk = require('./build/Debug/turbowalk').default;
-  const bluebird = require('bluebird');
+if (process.platform === 'win32') {
+  const path = require('path');
+  const winapi = require('winapi-bindings');
 
   const isDriveLetter = (input) =>
-    (input.length === 2) && input.endsWith(':')
+    (input.length === 2) && input.endsWith(':');
 
-  module.exports = {
-    __esModule: true,
-    default: (walkPath, progress, options) => {
-      if (walkPath === undefined) {
-        throw new Error('expected at least one parameter');
+  walk = (walkPath, progress, options, setCancel) => {
+    if (walkPath === undefined) {
+      throw new Error('expected at least one parameter');
+    }
+    const stackErr = new Error();
+    return new Promise((resolve, reject) => {
+      let cancelled = false;
+      if (setCancel !== undefined) {
+        setCancel(() => { cancelled = true; });
       }
-      const stackErr = new Error();
-      return new bluebird((resolve, reject, onCancel) => {
-        cancelled = false;
-        // onCancel will be available if bluebird is configured to support cancelation
-        // but will be undefined otherwise
-        if (onCancel !== undefined) {
-          onCancel(() => { cancelled = true; });
+
+      const basePath = isDriveLetter(walkPath) ? walkPath : path.normalize(walkPath);
+      const onProgress = (entries) => {
+        if (progress !== undefined) {
+          progress(entries);
         }
-        turbowalk(isDriveLetter(walkPath) ? walkPath : path.normalize(walkPath), (entries) => {
-          if (progress !== undefined) {
-            progress(entries);
-          }
-          return !cancelled;
-        }, (err) => {
-          if (err !== null) {
-            err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
-            const code = {
-              2: 'ENOTFOUND',
-              3: 'ENOTFOUND',
-              23: 'EIO',
-              32: 'EBUSY',
-              55: 'ENOTCONN',
-              1392: 'EIO',
-            }[err.errno];
-            if (code !== undefined) {
-              err.code = code;
-            }
-            reject(err);
-          } else {
-            resolve();
-          }
+        return !cancelled;
+      };
+      const onFinish = (err) => {
+        console.log('on finish', err);
+        if (err !== null) {
+          err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
+          reject(err);
+        } else {
+          resolve();
         }
-          , options || {});
-      });
-    },
+      };
+      winapi.WalkDir(basePath, onProgress, options || {}, onFinish);
+    });
   };
 } else {
-  module.exports = {
-    __esModule: true,
-    default: require('./walk').default,
-  };
+  walk = require('./walk').default;
+}
+
+module.exports = {
+  __esModule: true,
+  default: walk,
 }
