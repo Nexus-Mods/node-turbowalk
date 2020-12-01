@@ -26,7 +26,6 @@ if (process.platform === 'win32') {
         return !cancelled;
       };
       const onFinish = (err) => {
-        console.log('on finish', err);
         if (err !== null) {
           err.stack = [].concat(err.stack.split('\n')[0], stackErr.stack.split('\n').slice(1)).join('\n');
           reject(err);
