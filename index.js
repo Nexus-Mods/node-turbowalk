@@ -1,3 +1,9 @@
+let bluebird;
+try {
+  bluebird = require('bluebird');
+  Promise = bluebird;
+} catch (err) { }
+
 let walk;
 
 if (process.platform === 'win32') {
@@ -37,7 +43,8 @@ if (process.platform === 'win32') {
     });
   };
 } else {
-  walk = require('./walk').default;
+  walk = (target, callback, options) =>
+    Promise.resolve(require('./walk').default(target, callback, options));
 }
 
 module.exports = {

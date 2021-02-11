@@ -29,7 +29,8 @@ function walk(target,
 	mtime: stat.value().mtime,
       } : undefined).filter(iter => iter !== undefined));
       return Promise.mapSeries(subDirs, (subDir) =>
-        walk(subDir, callback, options));
+        walk(subDir, callback, options))
+        .then(() => undefined);
     });
 }
 
