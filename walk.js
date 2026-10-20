@@ -14,8 +14,10 @@ function walk(target,
       : Promise.reject(err))
     .then((fileNames) => {
       allFileNames = fileNames;
+      // bigint stats keep inode numbers above 2^53 exact for idStr
+      const statOptions = { bigint: opt.details === true };
       return Promise.map(fileNames, (statPath) =>
-                         Promise.resolve(fs.lstat(path.join(target, statPath))).reflect(), { concurrency: 50 });
+                         Promise.resolve(fs.lstat(path.join(target, statPath), statOptions)).reflect(), { concurrency: 50 });
     }).then((res) => {
       // use the stats results to generate a list of paths of the directories
       // in the searched directory
@@ -25,8 +27,13 @@ function walk(target,
       callback(res.map((stat, idx) => stat.isFulfilled() ? {
 	filePath: path.join(target, allFileNames[idx]),
 	isDirectory: stat.value().isDirectory(),
-	size: stat.value().size,
+	size: Number(stat.value().size),
 	mtime: stat.value().mtime,
+	...(opt.details ? {
+	  id: Number(stat.value().ino),
+	  idStr: stat.value().ino.toString(),
+	  linkCount: Number(stat.value().nlink),
+	} : {}),
       } : undefined).filter(iter => iter !== undefined));
       return Promise.mapSeries(subDirs, (subDir) =>
         walk(subDir, callback, options))
