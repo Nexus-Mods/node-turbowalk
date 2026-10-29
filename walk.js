@@ -26,6 +26,7 @@ function walk(target,
 	filePath: path.join(target, allFileNames[idx]),
 	isDirectory: stat.value().isDirectory(),
 	size: stat.value().size,
+	length: stat.value().size,
 	mtime: stat.value().mtime,
       } : undefined).filter(iter => iter !== undefined));
       return Promise.mapSeries(subDirs, (subDir) =>
